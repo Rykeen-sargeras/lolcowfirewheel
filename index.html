@@ -380,15 +380,35 @@ const ALL_TOPICS = [
   "Boogie Trashing His House"
 ];
 
-const FIRE_COLORS = [
-  "#cc0000", "#e63600", "#ff4500", "#ff5a00",
-  "#ff6e00", "#ff8200", "#ff9600", "#ffaa00",
-  "#ffbe00", "#ffd200", "#b30000", "#991a00",
-  "#d44700", "#e65c00"
-];
+const SAVE_KEY = "lolcow_fire_state";
 
-let topics = [...ALL_TOPICS];
-let removedTopics = [];
+// Load saved state or use defaults
+function loadState() {
+  try {
+    const saved = localStorage.getItem(SAVE_KEY);
+    if (saved) {
+      const state = JSON.parse(saved);
+      return {
+        topics: state.topics || [...ALL_TOPICS],
+        removed: state.removed || []
+      };
+    }
+  } catch (e) {}
+  return { topics: [...ALL_TOPICS], removed: [] };
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      topics: topics,
+      removed: removedTopics
+    }));
+  } catch (e) {}
+}
+
+const state = loadState();
+let topics = state.topics;
+let removedTopics = state.removed;
 let currentAngle = 0;
 let spinning = false;
 let lastWinnerIndex = -1;
@@ -401,7 +421,20 @@ const resetBtn = document.getElementById("resetBtn");
 const resultText = document.getElementById("resultText");
 const removedList = document.getElementById("removedList");
 const removedItems = document.getElementById("removedItems");
-const wheelWrapper = document.getElementById("wheelWrapper");
+
+// Show removed list on load if there are removed topics
+if (removedTopics.length > 0) {
+  removedList.style.display = "block";
+  removedItems.innerHTML = removedTopics.map(t =>
+    `<span class="removed-tag">${t}</span>`
+  ).join("");
+}
+
+// Check if all done on load
+if (topics.length === 0) {
+  document.getElementById("resultBox").innerHTML = '<div class="done-message">🔥 ALL TOPICS BURNED 🔥</div>';
+  spinBtn.disabled = true;
+}
 
 // Create floating embers
 function createEmbers() {
@@ -423,15 +456,62 @@ function createEmbers() {
 createEmbers();
 
 let colorOffset = 0;
-let animFrameId = null;
 
-function hslColor(index, total) {
-  // Fire only: hue 0 (red) through 45 (deep orange/yellow), never goes green/blue
-  const baseHue = (index / total) * 50;
-  const animHue = (baseHue + colorOffset * 0.5) % 50;
-  const sat = 95 + Math.sin((colorOffset + index * 25) * Math.PI / 180) * 5;
-  const light = index % 2 === 0 ? 40 : 52;
-  return `hsl(${animHue}, ${sat}%, ${light}%)`;
+// Smooth gradient fire colors using canvas gradients within each slice
+function getFireGradient(cx, cy, radius, startAngle, endAngle, index, total) {
+  // Create a radial-ish color by using two fire tones per slice
+  const t = (index / total + colorOffset / 500) % 1;
+
+  // Fire palette: deep red → red → orange → amber → yellow → gold
+  const fireStops = [
+    { r: 139, g: 0, b: 0 },     // dark red
+    { r: 204, g: 0, b: 0 },     // red
+    { r: 230, g: 46, b: 0 },    // red-orange
+    { r: 255, g: 69, b: 0 },    // orange-red
+    { r: 255, g: 115, b: 0 },   // orange
+    { r: 255, g: 150, b: 0 },   // amber
+    { r: 255, g: 183, b: 0 },   // gold
+    { r: 255, g: 210, b: 30 },  // yellow
+    { r: 255, g: 165, b: 0 },   // back to orange
+    { r: 230, g: 60, b: 0 },    // back to red-orange
+  ];
+
+  const pos = (t * fireStops.length) % fireStops.length;
+  const idx1 = Math.floor(pos);
+  const idx2 = (idx1 + 1) % fireStops.length;
+  const frac = pos - idx1;
+
+  const c1 = fireStops[idx1];
+  const c2 = fireStops[idx2];
+
+  const innerR = Math.round(c1.r + (c2.r - c1.r) * frac);
+  const innerG = Math.round(c1.g + (c2.g - c1.g) * frac);
+  const innerB = Math.round(c1.b + (c2.b - c1.b) * frac);
+
+  // Outer color is a neighboring fire color for gradient effect
+  const pos2 = ((t + 0.15) * fireStops.length) % fireStops.length;
+  const idx3 = Math.floor(pos2);
+  const idx4 = (idx3 + 1) % fireStops.length;
+  const frac2 = pos2 - idx3;
+
+  const c3 = fireStops[idx3];
+  const c4 = fireStops[idx4];
+
+  const outerR = Math.round(c3.r + (c4.r - c3.r) * frac2);
+  const outerG = Math.round(c3.g + (c4.g - c3.g) * frac2);
+  const outerB = Math.round(c3.b + (c4.b - c3.b) * frac2);
+
+  const midAngle = (startAngle + endAngle) / 2;
+  const grad = ctx.createLinearGradient(
+    cx, cy,
+    cx + Math.cos(midAngle) * radius,
+    cy + Math.sin(midAngle) * radius
+  );
+  grad.addColorStop(0, `rgb(${innerR}, ${innerG}, ${innerB})`);
+  grad.addColorStop(0.5, `rgb(${outerR}, ${outerG}, ${outerB})`);
+  grad.addColorStop(1, `rgb(${Math.min(255, outerR + 30)}, ${Math.min(255, outerG + 20)}, ${outerB})`);
+
+  return grad;
 }
 
 function drawWheel() {
@@ -449,18 +529,18 @@ function drawWheel() {
     const startAngle = currentAngle + i * arc;
     const endAngle = startAngle + arc;
 
-    // Slice
+    // Slice with gradient fire color
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, radius, startAngle, endAngle);
     ctx.closePath();
 
-    ctx.fillStyle = hslColor(i, numSlices);
+    ctx.fillStyle = getFireGradient(cx, cy, radius, startAngle, endAngle, i, numSlices);
     ctx.fill();
 
-    // Dark edge
-    ctx.strokeStyle = "rgba(0,0,0,0.35)";
-    ctx.lineWidth = 2;
+    // Subtle dark edge between slices
+    ctx.strokeStyle = "rgba(0,0,0,0.25)";
+    ctx.lineWidth = 1.5;
     ctx.stroke();
 
     // Text
@@ -469,8 +549,10 @@ function drawWheel() {
     ctx.rotate(startAngle + arc / 2);
     ctx.textAlign = "right";
     ctx.fillStyle = "#fff";
-    ctx.shadowColor = "rgba(0,0,0,0.9)";
-    ctx.shadowBlur = 8;
+    ctx.shadowColor = "rgba(0,0,0,0.95)";
+    ctx.shadowBlur = 10;
+    ctx.strokeStyle = "rgba(0,0,0,0.5)";
+    ctx.lineWidth = 3;
 
     // Font sizes that fit all text in slices
     const fontSize = numSlices <= 6 ? 44 : numSlices <= 10 ? 38 : numSlices <= 14 ? 32 : 26;
@@ -500,25 +582,26 @@ function drawWheel() {
     const startY = -totalHeight / 2 + lineHeight / 2;
 
     lines.forEach((line, idx) => {
+      ctx.strokeText(line, radius - 28, startY + idx * lineHeight + 8);
       ctx.fillText(line, radius - 28, startY + idx * lineHeight + 8);
     });
 
     ctx.restore();
   }
 
-  // Glow ring
+  // Outer glow ring
   ctx.beginPath();
-  ctx.arc(cx, cy, radius + 2, 0, 2 * Math.PI);
-  ctx.strokeStyle = "rgba(255, 100, 0, 0.15)";
+  ctx.arc(cx, cy, radius + 3, 0, 2 * Math.PI);
+  ctx.strokeStyle = "rgba(255, 100, 0, 0.2)";
   ctx.lineWidth = 6;
   ctx.stroke();
 }
 
-// Animate the color cycling continuously
+// Animate the color cycling continuously — slow and smooth
 function animateColors() {
-  colorOffset += 0.3;
+  colorOffset += 0.15;
   drawWheel();
-  animFrameId = requestAnimationFrame(animateColors);
+  requestAnimationFrame(animateColors);
 }
 animateColors();
 
@@ -587,6 +670,9 @@ function removeTopic() {
   lastWinnerIndex = -1;
   removeBtn.style.display = "none";
 
+  // Save to localStorage
+  saveState();
+
   // Update removed list
   removedList.style.display = "block";
   removedItems.innerHTML = removedTopics.map(t =>
@@ -601,6 +687,7 @@ function removeTopic() {
     resultText.classList.remove("show");
     document.getElementById("resultBox").innerHTML = '<div class="done-message">🔥 ALL TOPICS BURNED 🔥</div>';
     spinBtn.disabled = true;
+    saveState();
   } else {
     drawWheel();
     resultText.classList.remove("show");
@@ -617,6 +704,9 @@ function resetAll() {
   removeBtn.style.display = "none";
   removedList.style.display = "none";
   removedItems.innerHTML = "";
+
+  // Save reset state
+  saveState();
 
   // Restore result box if it was replaced
   const resultBox = document.getElementById("resultBox");
