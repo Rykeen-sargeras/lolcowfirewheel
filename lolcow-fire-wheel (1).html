@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOLCOW FIRE Wheel</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    overflow-x: hidden;
+    background: #0a0200;
+    color: #fff;
+  }
+
+  /* Animated fire background */
+  .fire-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse at 50% 100%, rgba(255, 80, 0, 0.25) 0%, transparent 60%),
+      radial-gradient(ellipse at 30% 90%, rgba(255, 30, 0, 0.2) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 95%, rgba(255, 160, 0, 0.15) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(80, 10, 0, 0.3) 0%, transparent 70%);
+  }
+
+  /* Floating embers */
+  .ember {
+    position: fixed;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #ff6a00;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+    animation: emberFloat linear infinite;
+    box-shadow: 0 0 6px 2px rgba(255, 100, 0, 0.6);
+  }
+
+  @keyframes emberFloat {
+    0% { transform: translateY(100vh) translateX(0) scale(1); opacity: 0; }
+    10% { opacity: 1; }
+    80% { opacity: 0.6; }
+    100% { transform: translateY(-20vh) translateX(var(--drift)) scale(0.2); opacity: 0; }
+  }
+
+  .container {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    padding: 20px;
+    width: 100%;
+    max-width: 600px;
+  }
+
+  .title-section {
+    text-align: center;
+  }
+
+  .fire-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(3rem, 9vw, 5.5rem);
+    letter-spacing: 8px;
+    line-height: 1;
+    background: linear-gradient(
+      180deg,
+      #fff8e1 0%,
+      #ffcc02 15%,
+      #ff8c00 40%,
+      #ff4500 65%,
+      #cc0000 85%,
+      #660000 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 20px rgba(255, 69, 0, 0.8)) drop-shadow(0 0 60px rgba(255, 140, 0, 0.4));
+    animation: fireFlicker 0.15s ease-in-out infinite alternate;
+  }
+
+  @keyframes fireFlicker {
+    0% { filter: drop-shadow(0 0 20px rgba(255, 69, 0, 0.8)) drop-shadow(0 0 60px rgba(255, 140, 0, 0.4)); }
+    100% { filter: drop-shadow(0 0 25px rgba(255, 69, 0, 0.9)) drop-shadow(0 0 70px rgba(255, 140, 0, 0.5)); }
+  }
+
+  .subtitle {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(1rem, 3vw, 1.4rem);
+    letter-spacing: 12px;
+    color: rgba(255, 140, 0, 0.5);
+    margin-top: -4px;
+  }
+
+  .wheel-wrapper {
+    position: relative;
+    width: clamp(300px, 80vw, 480px);
+    height: clamp(300px, 80vw, 480px);
+  }
+
+  .pointer {
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    width: 0;
+    height: 0;
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+    border-top: 40px solid #ffffff;
+    filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    box-shadow:
+      0 0 0 5px rgba(255, 100, 0, 0.3),
+      0 0 30px rgba(255, 69, 0, 0.5),
+      0 0 80px rgba(255, 30, 0, 0.3),
+      inset 0 0 30px rgba(0, 0, 0, 0.4);
+  }
+
+  .center-circle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #1a0800 0%, #0d0400 100%);
+    border: 3px solid rgba(255, 100, 0, 0.4);
+    box-shadow: 0 0 15px rgba(255, 69, 0, 0.4), inset 0 0 8px rgba(255, 69, 0, 0.2);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .center-circle::after {
+    content: "🔥";
+    font-size: 22px;
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  #spinBtn {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.3rem;
+    padding: 14px 50px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: linear-gradient(180deg, #ff8c00, #ff4500, #cc0000);
+    color: #fff;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    box-shadow: 0 4px 30px rgba(255, 69, 0, 0.6), inset 0 1px 0 rgba(255, 200, 0, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  #spinBtn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 40px rgba(255, 69, 0, 0.8), inset 0 1px 0 rgba(255, 200, 0, 0.4);
+  }
+
+  #spinBtn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  #removeBtn {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.3rem;
+    padding: 14px 30px;
+    border: 2px solid rgba(255, 69, 0, 0.5);
+    border-radius: 6px;
+    cursor: pointer;
+    background: rgba(255, 69, 0, 0.1);
+    color: #ff8c00;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    display: none;
+  }
+
+  #removeBtn:hover {
+    background: rgba(255, 69, 0, 0.25);
+    border-color: #ff8c00;
+  }
+
+  #resetBtn {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1rem;
+    padding: 10px 24px;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+
+  #resetBtn:hover {
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.8);
+  }
+
+  .result-box {
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 18px 28px;
+    border-radius: 10px;
+    background: rgba(255, 69, 0, 0.08);
+    border: 1px solid rgba(255, 69, 0, 0.2);
+    backdrop-filter: blur(10px);
+    max-width: 440px;
+    width: 100%;
+  }
+
+  .result-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 3px;
+    color: #ffcc02;
+    opacity: 0;
+    transition: opacity 0.4s;
+    text-shadow: 0 0 20px rgba(255, 140, 0, 0.6);
+  }
+
+  .result-text.show { opacity: 1; }
+
+  .result-sub {
+    display: block;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 4px;
+    color: rgba(255, 140, 0, 0.5);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+
+  /* Removed topics sidebar */
+  .removed-list {
+    width: 100%;
+    max-width: 440px;
+  }
+
+  .removed-header {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 4px;
+    color: rgba(255, 100, 0, 0.4);
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .removed-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+  }
+
+  .removed-tag {
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 4px;
+    background: rgba(255, 69, 0, 0.1);
+    border: 1px solid rgba(255, 69, 0, 0.15);
+    color: rgba(255, 140, 0, 0.35);
+    text-decoration: line-through;
+    letter-spacing: 1px;
+  }
+
+  .done-message {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 4px;
+    color: #ffcc02;
+    text-shadow: 0 0 30px rgba(255, 140, 0, 0.8);
+    text-align: center;
+    animation: fireFlicker 0.15s ease-in-out infinite alternate;
+  }
+
+  /* Fire burst on result */
+  .fire-burst {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 200, 0, 0.4) 0%, rgba(255, 69, 0, 0.2) 40%, transparent 70%);
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0;
+    animation: burstAnim 0.8s ease-out forwards;
+  }
+
+  @keyframes burstAnim {
+    0% { opacity: 1; transform: translate(-50%, -50%) scale(0.3); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(2.5); }
+  }
+</style>
+</head>
+<body>
+
+<div class="fire-bg"></div>
+
+<div class="container">
+  <div class="title-section">
+    <div class="fire-title">LOLCOW FIRE</div>
+    <div class="subtitle">Spin &bull; Discuss &bull; Burn</div>
+  </div>
+
+  <div class="wheel-wrapper" id="wheelWrapper">
+    <div class="pointer"></div>
+    <canvas id="wheel" width="960" height="960"></canvas>
+    <div class="center-circle"></div>
+  </div>
+
+  <div class="result-box" id="resultBox">
+    <div class="result-text" id="resultText"></div>
+  </div>
+
+  <div class="controls">
+    <button id="spinBtn">🔥 SPIN 🔥</button>
+    <button id="removeBtn">BURN &amp; REMOVE</button>
+    <button id="resetBtn">RESET ALL</button>
+  </div>
+
+  <div class="removed-list" id="removedList" style="display:none;">
+    <div class="removed-header">🔥 Burned Topics 🔥</div>
+    <div class="removed-items" id="removedItems"></div>
+  </div>
+</div>
+
+<script>
+const ALL_TOPICS = [
+  "Becky at Fat Camp",
+  "Wings at Fat Camp",
+  "Billy Drunk Driving",
+  "Queens Conception",
+  "Becky Firing",
+  "Donuts & Mermaids",
+  "Zey vs Knightmare",
+  "Billy vs Xylie",
+  "Grimm Firing",
+  "Roxy Pinocchio",
+  "Groundhogs Day",
+  "Glamy Firings",
+  "Madhouse Firing",
+  "Boogie Trashing His House"
+];
+
+const FIRE_COLORS = [
+  "#cc0000", "#e63600", "#ff4500", "#ff5a00",
+  "#ff6e00", "#ff8200", "#ff9600", "#ffaa00",
+  "#ffbe00", "#ffd200", "#b30000", "#991a00",
+  "#d44700", "#e65c00"
+];
+
+let topics = [...ALL_TOPICS];
+let removedTopics = [];
+let currentAngle = 0;
+let spinning = false;
+let lastWinnerIndex = -1;
+
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+const spinBtn = document.getElementById("spinBtn");
+const removeBtn = document.getElementById("removeBtn");
+const resetBtn = document.getElementById("resetBtn");
+const resultText = document.getElementById("resultText");
+const removedList = document.getElementById("removedList");
+const removedItems = document.getElementById("removedItems");
+const wheelWrapper = document.getElementById("wheelWrapper");
+
+// Create floating embers
+function createEmbers() {
+  for (let i = 0; i < 25; i++) {
+    const ember = document.createElement("div");
+    ember.className = "ember";
+    ember.style.left = Math.random() * 100 + "vw";
+    ember.style.setProperty("--drift", (Math.random() * 100 - 50) + "px");
+    ember.style.animationDuration = (3 + Math.random() * 5) + "s";
+    ember.style.animationDelay = Math.random() * 6 + "s";
+    ember.style.width = (2 + Math.random() * 4) + "px";
+    ember.style.height = (2 + Math.random() * 4) + "px";
+    const hue = Math.random() > 0.5 ? "#ff6a00" : "#ffaa00";
+    ember.style.background = hue;
+    ember.style.boxShadow = `0 0 6px 2px ${hue}88`;
+    document.body.appendChild(ember);
+  }
+}
+createEmbers();
+
+let colorOffset = 0;
+let animFrameId = null;
+
+function hslColor(index, total) {
+  // Fire only: hue 0 (red) through 45 (deep orange/yellow), never goes green/blue
+  const baseHue = (index / total) * 50;
+  const animHue = (baseHue + colorOffset * 0.5) % 50;
+  const sat = 95 + Math.sin((colorOffset + index * 25) * Math.PI / 180) * 5;
+  const light = index % 2 === 0 ? 40 : 52;
+  return `hsl(${animHue}, ${sat}%, ${light}%)`;
+}
+
+function drawWheel() {
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const radius = cx - 10;
+  const numSlices = topics.length;
+  const arc = (2 * Math.PI) / numSlices;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (numSlices === 0) return;
+
+  for (let i = 0; i < numSlices; i++) {
+    const startAngle = currentAngle + i * arc;
+    const endAngle = startAngle + arc;
+
+    // Slice
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, radius, startAngle, endAngle);
+    ctx.closePath();
+
+    ctx.fillStyle = hslColor(i, numSlices);
+    ctx.fill();
+
+    // Dark edge
+    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Text
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(startAngle + arc / 2);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#fff";
+    ctx.shadowColor = "rgba(0,0,0,0.9)";
+    ctx.shadowBlur = 8;
+
+    // Font sizes that fit all text in slices
+    const fontSize = numSlices <= 6 ? 44 : numSlices <= 10 ? 38 : numSlices <= 14 ? 32 : 26;
+    ctx.font = `bold ${fontSize}px 'Barlow Condensed', sans-serif`;
+
+    // Auto-wrap text to fit in slice
+    const maxWidth = radius * 0.55;
+    const rawLines = topics[i].split("\n");
+    const lines = [];
+    rawLines.forEach(rawLine => {
+      const words = rawLine.split(" ");
+      let current = "";
+      words.forEach(word => {
+        const test = current ? current + " " + word : word;
+        if (ctx.measureText(test).width > maxWidth && current) {
+          lines.push(current);
+          current = word;
+        } else {
+          current = test;
+        }
+      });
+      if (current) lines.push(current);
+    });
+
+    const lineHeight = fontSize + 4;
+    const totalHeight = lines.length * lineHeight;
+    const startY = -totalHeight / 2 + lineHeight / 2;
+
+    lines.forEach((line, idx) => {
+      ctx.fillText(line, radius - 28, startY + idx * lineHeight + 8);
+    });
+
+    ctx.restore();
+  }
+
+  // Glow ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius + 2, 0, 2 * Math.PI);
+  ctx.strokeStyle = "rgba(255, 100, 0, 0.15)";
+  ctx.lineWidth = 6;
+  ctx.stroke();
+}
+
+// Animate the color cycling continuously
+function animateColors() {
+  colorOffset += 0.3;
+  drawWheel();
+  animFrameId = requestAnimationFrame(animateColors);
+}
+animateColors();
+
+function spin() {
+  if (spinning || topics.length === 0) return;
+  spinning = true;
+  spinBtn.disabled = true;
+  removeBtn.style.display = "none";
+  resultText.classList.remove("show");
+  lastWinnerIndex = -1;
+
+  const spinAmount = Math.random() * 360 + 360 * 6;
+  const duration = 4500 + Math.random() * 1000;
+  const startAngleVal = currentAngle;
+  const targetAngle = startAngleVal + (spinAmount * Math.PI) / 180;
+  const startTime = performance.now();
+
+  function easeOut(t) {
+    return 1 - Math.pow(1 - t, 4);
+  }
+
+  function animate(time) {
+    const elapsed = time - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const easedProgress = easeOut(progress);
+
+    currentAngle = startAngleVal + (targetAngle - startAngleVal) * easedProgress;
+
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      spinning = false;
+      spinBtn.disabled = false;
+      currentAngle = currentAngle % (2 * Math.PI);
+
+      const numSlices = topics.length;
+      const arc = (2 * Math.PI) / numSlices;
+      const pointerAngle = (2 * Math.PI - currentAngle + (3 * Math.PI / 2)) % (2 * Math.PI);
+      const sliceIndex = Math.floor(pointerAngle / arc) % numSlices;
+
+      lastWinnerIndex = sliceIndex;
+      const winner = topics[sliceIndex].replace(/\n/g, " ");
+
+      resultText.innerHTML = `<span class="result-sub">Topic Selected</span>${winner}`;
+      resultText.classList.add("show");
+
+      // Show remove button
+      removeBtn.style.display = "inline-block";
+
+      // Fire burst effect
+      const burst = document.createElement("div");
+      burst.className = "fire-burst";
+      document.body.appendChild(burst);
+      setTimeout(() => burst.remove(), 900);
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+
+function removeTopic() {
+  if (lastWinnerIndex < 0 || lastWinnerIndex >= topics.length) return;
+
+  const removed = topics.splice(lastWinnerIndex, 1)[0];
+  removedTopics.push(removed.replace(/\n/g, " "));
+  lastWinnerIndex = -1;
+  removeBtn.style.display = "none";
+
+  // Update removed list
+  removedList.style.display = "block";
+  removedItems.innerHTML = removedTopics.map(t =>
+    `<span class="removed-tag">${t}</span>`
+  ).join("");
+
+  currentAngle = 0;
+
+  if (topics.length === 0) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    resultText.innerHTML = "";
+    resultText.classList.remove("show");
+    document.getElementById("resultBox").innerHTML = '<div class="done-message">🔥 ALL TOPICS BURNED 🔥</div>';
+    spinBtn.disabled = true;
+  } else {
+    drawWheel();
+    resultText.classList.remove("show");
+  }
+}
+
+function resetAll() {
+  topics = [...ALL_TOPICS];
+  removedTopics = [];
+  lastWinnerIndex = -1;
+  currentAngle = 0;
+  spinning = false;
+  spinBtn.disabled = false;
+  removeBtn.style.display = "none";
+  removedList.style.display = "none";
+  removedItems.innerHTML = "";
+
+  // Restore result box if it was replaced
+  const resultBox = document.getElementById("resultBox");
+  if (!document.getElementById("resultText")) {
+    resultBox.innerHTML = '<div class="result-text" id="resultText"></div>';
+  }
+
+  drawWheel();
+}
+
+spinBtn.addEventListener("click", spin);
+removeBtn.addEventListener("click", removeTopic);
+resetBtn.addEventListener("click", resetAll);
+</script>
+
+</body>
+</html>
